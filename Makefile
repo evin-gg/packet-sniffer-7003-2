@@ -20,4 +20,4 @@ tcp6:
 	$(cmd) "tcp and ip6"
 
 udp6:
-	$(cmd) "tcp and ip6"
+	$(cmd) "udp and ip6"
