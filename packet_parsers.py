@@ -18,23 +18,32 @@ def parse_ethernet_header(hex_data):
     elif ether_type == "0800":  # IPv4
         parse_ipv4_header(payload)
         
-
-    elif ether_type == "86DD":  # IPv6
-        return
+    elif ether_type == "86dd":  # IPv6
+        parse_ipv6_header(payload)
     else:
         print(f"  {'Unknown EtherType:':<25} {ether_type:<20} | {int(ether_type, 16)}")
         print("  No parser available for this EtherType.")
 
     return ether_type, payload
 
-def determine_header_ipv4(hex_data):
-    if int(hex_data[18:20], 16) == 0x11:
+def determine_header(protocol, hex_data):
+    if protocol == 0x11:
         parse_udp_header_ipv4(hex_data)
-    elif int(hex_data[18:20], 16) == 0x06:
+    elif protocol == 0x06:
         parse_tcp_header_ipv4(hex_data)
-    elif int(hex_data[18:20], 16) == 0x01:
+    elif protocol == 0x01:
         parse_icmp_header_ipv4(hex_data)
+    elif protocol == 0x0:
 
+        offset = int(hex_data[82:84], 16)
+
+        if offset == 0x00:
+            offset = 16
+
+        parse_icmpv6_header(hex_data, offset)
+
+    elif protocol == 0x3A:
+        parse_icmpv6_header(hex_data, 0)
 
 
 # Parse ARP header
@@ -121,10 +130,36 @@ def parse_ipv4_header(hex_data):
     print(f"  {'Source Address:':<25} {hex_data[24:32]:<20} | {source_ip}")
     print(f"  {'Destination Address:':<25} {hex_data[32:40]:<20} | {dest_ip}")
 
-    determine_header_ipv4(hex_data)
+    determine_header(protocol, hex_data)
 
 def parse_ipv6_header(hex_data):
-    return
+    ipv6_start = int(hex_data[0:8], 16)
+    version = (ipv6_start >> 28) & 0xF
+    traffic_class = (ipv6_start >> 20) & 0xFF
+    differentiated_services = (ipv6_start >> 22) & 0x3F
+    explicit_congestion = (ipv6_start >> 20) & 0x3
+    flow_label = ipv6_start & 0xFFFFF
+
+    payload_length = int(hex_data[8:12], 16)
+    next_header = int(hex_data[12:14], 16)
+    hop_limit = int(hex_data[14:16], 16)
+
+    source_ip = int(hex_data[16:48], 16)
+    dest_ip = int(hex_data[48:80], 16)
+
+    print(f"IPv6 Header:")
+    print(f"  {'Version:':<25} {version:<20} | {version}")
+    print(f"  {'Traffic Class:':<25} {traffic_class:<20} | {traffic_class}")
+    print(f"  {'Differentiated Services:':<25} {differentiated_services:<20} | {differentiated_services}")
+    print(f"  {'Explicit Congestion Notification:':<25} {explicit_congestion:<20} | {explicit_congestion}")
+    print(f"  {'Flow Label:':<25} {flow_label:<20} | {flow_label}")
+    print(f"  {'Payload Length:':<25} {hex_data[8:12]:<20} | {payload_length} bytes")
+    print(f"  {'Next Header:':<25} {hex_data[12:14]:<20} | {next_header}")
+    print(f"  {'Hop Limit:':<25} {hex_data[14:16]:<20} | {hop_limit}")
+    print(f"  {'Source Address:':<25} {hex_data[16:48]:<20} | {source_ip}")
+    print(f"  {'Destination Address:':<25} {hex_data[48:80]:<20} | {dest_ip}")
+
+    determine_header(next_header, hex_data)
 
 def parse_udp_header_ipv4(hex_data):
     # for i in range(0, len(hex_data), 2):
@@ -284,12 +319,13 @@ def query_dns(flags):
     print(f"  {'Z:':<25} {z:01b}")
     print(f"  {'Non-authenticated Data:':<25} {non_auth_data:01b}")
 
+def parse_icmpv6_header(hex_data, offset):
+    type = int(hex_data[80 + offset:82 + offset], 16)
+    code = int(hex_data[82 + offset:84 + offset], 16)
+    checksum = int(hex_data[84 + offset:88 + offset], 16)
+    payload = hex_data[88 + offset:]
 
-def parse_icmpv6_header(hex_data):
-    return
-
-def parse_tcp_header_ipv6(hex_data):
-    return
-
-def parse_udp_header_ipv6(hex_data):
-    return
+    print(f"ICMPv6 Header:")
+    print(f"  {'Type:':<25} {hex_data[80 + offset:82 + offset]:<20} | {type}")
+    print(f"  {'Code:':<25} {hex_data[82 + offset:84 + offset]:<20} | {code}")
+    print(f"  {'Checksum:':<25} {hex_data[84 + offset:88 + offset]:<20} | {checksum}")

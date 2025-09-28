@@ -1,13 +1,22 @@
 
-RUN = sudo -E python3 main.py -i any -c 3 -f
+cmd = sudo -E python3 main.py -i any -c 3 -f
 icmp:
-	$(RUN) icmp
+	$(cmd) icmp
 
 udp:
-	$(RUN) udp
+	$(cmd) udp
 
 tcp:
-	$(RUN) tcp
+	$(cmd) tcp
 
 dns:
-	$(RUN) 'udp port 53 or tcp port 53'
+	$(cmd) 'udp port 53 or tcp port 53'
+
+icmp6:
+	$(cmd) icmp6
+
+tcp6:
+	$(cmd) tcp6
+
+udp6:
+	$(cmd) udp6
