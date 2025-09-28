@@ -1,5 +1,6 @@
 
-cmd = sudo -E python3 main.py -i any -c 3 -f
+cmd = sudo -E python3 main.py -i any -c 1 -f
+
 icmp:
 	$(cmd) icmp
 
@@ -16,7 +17,7 @@ icmp6:
 	$(cmd) icmp6
 
 tcp6:
-	$(cmd) tcp6
+	$(cmd) "tcp and ip6"
 
 udp6:
-	$(cmd) udp6
+	$(cmd) "tcp and ip6"

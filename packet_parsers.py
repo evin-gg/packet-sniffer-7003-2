@@ -26,20 +26,21 @@ def parse_ethernet_header(hex_data):
 
     return ether_type, payload
 
-def determine_header(protocol, hex_data):
+def determine_header(protocol, hex_data, offset=0):
     if protocol == 0x11:
         parse_udp_header(hex_data)
+
     elif protocol == 0x06:
         parse_tcp_header(hex_data)
+
     elif protocol == 0x01:
         parse_icmp_header(hex_data)
-    elif protocol == 0x0:
 
+    elif protocol == 0x0:
         offset = int(hex_data[82:84], 16)
 
         if offset == 0x00:
             offset = 16
-
         parse_icmpv6_header(hex_data, offset)
 
     elif protocol == 0x3A:
@@ -70,14 +71,13 @@ def parse_arp_header(hex_data):
     print(f"  {'Destination IP Address:':<25} {hex_data[48:56]:<20} | {destination_ip}")
 
 def parse_ipv4_header(hex_data):
-    for i in range(0, len(hex_data), 2):
-        print(hex_data[i:i+2], end=' ')
-    print()
-
     # Version and header length bits
     version_headerlen = int(hex_data[:2], 16)
     version = (version_headerlen >> 4) & 0xF
     header_len = version_headerlen & 0xF
+
+    header_size_bytes = header_len * 4
+    header_size_hex_chars = header_size_bytes * 2
 
     # Differentiated Services Field
     diff_serv_field = int(hex_data[2:4], 16)
@@ -112,6 +112,7 @@ def parse_ipv4_header(hex_data):
     # Destination address
     dest_ip = int(hex_data[32:40], 16)
 
+    print(f"IPv4 Header:")
     print(f"  {'Version:':<25} {version:<20} | {version}")
     print(f"  {'Header Length:':<25} {header_len:<20} | {header_len * 4} bytes")
     print(f"  {'Differentiated Services Field:':<25} {hex_data[2:4]:<20} | {diff_serv_field}")
@@ -130,14 +131,16 @@ def parse_ipv4_header(hex_data):
     print(f"  {'Source Address:':<25} {hex_data[24:32]:<20} | {source_ip}")
     print(f"  {'Destination Address:':<25} {hex_data[32:40]:<20} | {dest_ip}")
 
-    determine_header(protocol, hex_data)
+    determine_header(protocol, hex_data[header_size_hex_chars:])
 
 def parse_ipv6_header(hex_data):
     ipv6_start = int(hex_data[0:8], 16)
     version = (ipv6_start >> 28) & 0xF
+
     traffic_class = (ipv6_start >> 20) & 0xFF
     differentiated_services = (ipv6_start >> 22) & 0x3F
     explicit_congestion = (ipv6_start >> 20) & 0x3
+
     flow_label = ipv6_start & 0xFFFFF
 
     payload_length = int(hex_data[8:12], 16)
@@ -159,36 +162,39 @@ def parse_ipv6_header(hex_data):
     print(f"  {'Source Address:':<25} {hex_data[16:48]:<20} | {source_ip}")
     print(f"  {'Destination Address:':<25} {hex_data[48:80]:<20} | {dest_ip}")
 
-    determine_header(next_header, hex_data)
+    determine_header(next_header, hex_data[80:])
 
 def parse_udp_header(hex_data):
-    source_port = int(hex_data[40:44], 16)
-    dest_port = int(hex_data[44:48], 16)
-    length = int(hex_data[48:52], 16)
-    checksum = int(hex_data[52:56], 16)
-    payload = hex_data[56:]
+    source_port = int(hex_data[0:4], 16)
+    dest_port = int(hex_data[4:8], 16)
+    length = int(hex_data[8:12], 16)
+    checksum = int(hex_data[12:16], 16)
+    payload = hex_data[16:]
 
     print(f"UDP Header:")
-    print(f"  {'Source Port:':<25} {hex_data[40:44]:<20} | {source_port}")
-    print(f"  {'Destination Port:':<25} {hex_data[44:48]:<20} | {dest_port}")
-    print(f"  {'Length:':<25} {hex_data[48:52]:<20} | {length}")
-    print(f"  {'Checksum:':<25} {hex_data[52:56]:<20} | {checksum}")
+    print(f"  {'Source Port:':<25} {hex_data[0:4]:<20} | {source_port}")
+    print(f"  {'Destination Port:':<25} {hex_data[4:8]:<20} | {dest_port}")
+    print(f"  {'Length:':<25} {hex_data[8:12]:<20} | {length}")
+    print(f"  {'Checksum:':<25} {hex_data[12:16]:<20} | {checksum}")
 
     if source_port == 53 or dest_port == 53:
-        parse_dns_header(hex_data)
+        parse_dns_header(hex_data[16:0])
     else:
         print(f"  {'Payload (hex):':<25} {payload if payload else 'None'}")
 
 def parse_tcp_header(hex_data):
-    source_port = int(hex_data[40:44], 16)
-    dest_port = int(hex_data[44:48], 16)
-    seq_number = int(hex_data[48:56], 16)
-    ack_number = int(hex_data[56:64], 16)
+    source_port = int(hex_data[0:4], 16)
+    dest_port = int(hex_data[4:8], 16)
+    seq_number = int(hex_data[8:16], 16)
+    ack_number = int(hex_data[16:24], 16)
 
     # entire headerlen + flags
-    headerlen_flags = int(hex_data[64:68], 16)
+    headerlen_flags = int(hex_data[24:28], 16)
     data_offset = (headerlen_flags >> 12) & 0xF
     reserved = (headerlen_flags >> 9) & 0x3
+
+    tcp_header_len_bytes = data_offset * 4
+    tcp_header_len_hex   = tcp_header_len_bytes * 2
 
     # flags
     accurate_ecn = (headerlen_flags >> 8) & 0x1
@@ -201,19 +207,22 @@ def parse_tcp_header(hex_data):
     syn = (headerlen_flags >> 1) & 0x1
     fin = (headerlen_flags >> 0) & 0x1
 
-    window = int(hex_data[68:72], 16)
-    checksum = int(hex_data[72:76], 16)
-    urgent_pointer = int(hex_data[76:80], 16)
+    window = int(hex_data[28:32], 16)
+    checksum = int(hex_data[32:36], 16)
+    urgent_pointer = int(hex_data[36:40], 16)
 
-    options = int(hex_data[80:104], 16)
-    payload = hex_data[104:]
+    options = 0
+    payload = ''
+    if tcp_header_len_bytes > 20:
+        options = int(hex_data[40:tcp_header_len_hex], 16)
+        payload = hex_data[tcp_header_len_hex:]
 
     print(f"TCP Header:")
-    print(f"  {'Source Port:':<25} {hex_data[40:44]:<20} | {source_port}")
-    print(f"  {'Destination Port:':<25} {hex_data[44:48]:<20} | {dest_port}")
-    print(f"  {'Sequence number:':<25} {hex_data[48:56]:<20} | {seq_number}")
-    print(f"  {'Acknowledgement number:':<25} {hex_data[56:64]:<20} | {ack_number}")
-    print(f"  {'Data Offset:':<25} {hex_data[64:68]:<20} | {data_offset * 4} bytes")
+    print(f"  {'Source Port:':<25} {hex_data[0:4]:<20} | {source_port}")
+    print(f"  {'Destination Port:':<25} {hex_data[4:8]:<20} | {dest_port}")
+    print(f"  {'Sequence number:':<25} {hex_data[8:16]:<20} | {seq_number}")
+    print(f"  {'Acknowledgement number:':<25} {hex_data[16:24]:<20} | {ack_number}")
+    print(f"  {'Data Offset:':<25} {hex_data[24:28]:<20} | {data_offset * 4} bytes")
     print(f"  {'Reserved:':<25} {reserved:03b} | {reserved}")
     print(f"  {'Flags:':<25} {headerlen_flags & 0x1FF:09b}")
     print(f"    {'Accurate ECN:':<23} {accurate_ecn:01b}")
@@ -225,10 +234,10 @@ def parse_tcp_header(hex_data):
     print(f"    {'Reset:':<23} {reset:01b}")
     print(f"    {'Syn:':<23} {syn:01b}")
     print(f"    {'Fin:':<23} {fin:01b}")
-    print(f"  {'Window:':<25} {hex_data[68:72]:<20} | {window}")
-    print(f"  {'Checksum:':<25} {hex_data[72:76]:<20} | {checksum}")
-    print(f"  {'Urgent Pointer:':<25} {hex_data[76:80]:<20} | {urgent_pointer}")
-    print(f"  {'Options:':<25} {hex_data[80:104]:<20} | {options}")
+    print(f"  {'Window:':<25} {hex_data[28:32]:<20} | {window}")
+    print(f"  {'Checksum:':<25} {hex_data[32:36]:<20} | {checksum}")
+    print(f"  {'Urgent Pointer:':<25} {hex_data[36:40]:<20} | {urgent_pointer}")
+    print(f"  {'Options:':<25} {hex_data[40:tcp_header_len_hex] if options else 'None':<20} | {options if options else 'None'}")
 
     if source_port == 53 or dest_port == 53:
         parse_dns_header(hex_data)
@@ -236,32 +245,32 @@ def parse_tcp_header(hex_data):
         print(f"  {'Payload (hex):':<25} {payload if payload else 'None'}")
 
 def parse_icmp_header(hex_data):
-    type = int(hex_data[40:42], 16)
-    code = int(hex_data[42:44], 16)
-    checksum = int(hex_data[44:48], 16)
-    rest_of_header = int(hex_data[48:56], 16)
-    payload = hex_data[56:]
+    type = int(hex_data[0:2], 16)
+    code = int(hex_data[2:4], 16)
+    checksum = int(hex_data[4:8], 16)
+    rest_of_header = int(hex_data[8:16], 16)
+    payload = hex_data[16:]
 
     print(f"ICMP Header:")
-    print(f"  {'Type:':<25} {hex_data[40:42]:<20} | {type}")
-    print(f"  {'Code:':<25} {hex_data[42:44]:<20} | {code}")
-    print(f"  {'Checksum:':<25} {hex_data[44:48]:<20} | {checksum}")
-    print(f"  {'Rest of Header:':<25} {hex_data[48:56]:<20} | {rest_of_header}")
+    print(f"  {'Type:':<25} {hex_data[0:2]:<20} | {type}")
+    print(f"  {'Code:':<25} {hex_data[2:4]:<20} | {code}")
+    print(f"  {'Checksum:':<25} {hex_data[4:8]:<20} | {checksum}")
+    print(f"  {'Rest of Header:':<25} {hex_data[8:16]:<20} | {rest_of_header}")
     print(f"  {'Payload (hex):':<25} {payload if payload else 'None'}")
 
 def parse_dns_header(hex_data):
     print(f"DNS Header:")
 
 
-    transaction_id = int(hex_data[104:108], 16)
-    print(f"  {'Transaction ID:':<25} {hex_data[104:108]:<20} | {transaction_id}")
+    transaction_id = int(hex_data[0:4], 16)
+    print(f"  {'Transaction ID:':<25} {hex_data[0:4]:<20} | {transaction_id}")
 
 
     # flags
-    flags = int(hex_data[108:112], 16)
+    flags = int(hex_data[4:8], 16)
     response = (flags >> 15) & 0x1
 
-    print(f"  {'Flags:':<25} {hex_data[108:112]:<20} | {flags:016b}")
+    print(f"  {'Flags:':<25} {hex_data[4:8]:<20} | {flags:016b}")
     print(f"    {'Response:':<23} {response:01b} | {'Response' if response else 'Query'}")
 
     if(response == 0):
@@ -271,15 +280,15 @@ def parse_dns_header(hex_data):
         response_dns(flags)
 
 
-    questions = int(hex_data[112:116], 16)
-    answer_rrs = int(hex_data[116:120], 16)
-    authority_rrs = int(hex_data[120:124], 16)
-    additional_rrs = int(hex_data[124:128], 16)
+    questions = int(hex_data[8:12], 16)
+    answer_rrs = int(hex_data[12:16], 16)
+    authority_rrs = int(hex_data[16:20], 16)
+    additional_rrs = int(hex_data[20:24], 16)
 
-    print(f"  {'Questions:':<25} {hex_data[112:116]:<20} | {questions}")
-    print(f"  {'Answer RRs:':<25} {hex_data[116:120]:<20} | {answer_rrs}")
-    print(f"  {'Authority RRs:':<25} {hex_data[120:124]:<20} | {authority_rrs}")
-    print(f"  {'Additional RRs:':<25} {hex_data[124:128]:<20} | {additional_rrs}")
+    print(f"  {'Questions:':<25} {hex_data[8:12]:<20} | {questions}")
+    print(f"  {'Answer RRs:':<25} {hex_data[12:16]:<20} | {answer_rrs}")
+    print(f"  {'Authority RRs:':<25} {hex_data[16:20]:<20} | {authority_rrs}")
+    print(f"  {'Additional RRs:':<25} {hex_data[20:24]:<20} | {additional_rrs}")
 
 def response_dns(flags):
     opcode = (flags >> 11) & 0xF
@@ -316,11 +325,11 @@ def query_dns(flags):
     print(f"  {'Non-authenticated Data:':<25} {non_auth_data:01b}")
 
 def parse_icmpv6_header(hex_data, offset):
-    type = int(hex_data[80 + offset:82 + offset], 16)
-    code = int(hex_data[82 + offset:84 + offset], 16)
-    checksum = int(hex_data[84 + offset:88 + offset], 16)
+    type = int(hex_data[0 + offset:2 + offset], 16)
+    code = int(hex_data[2 + offset:4 + offset], 16)
+    checksum = int(hex_data[4 + offset:8 + offset], 16)
 
     print(f"ICMPv6 Header:")
-    print(f"  {'Type:':<25} {hex_data[80 + offset:82 + offset]:<20} | {type}")
-    print(f"  {'Code:':<25} {hex_data[82 + offset:84 + offset]:<20} | {code}")
-    print(f"  {'Checksum:':<25} {hex_data[84 + offset:88 + offset]:<20} | {checksum}")
+    print(f"  {'Type:':<25} {hex_data[0 + offset:2 + offset]:<20} | {type}")
+    print(f"  {'Code:':<25} {hex_data[2 + offset:4 + offset]:<20} | {code}")
+    print(f"  {'Checksum:':<25} {hex_data[4 + offset:8 + offset]:<20} | {checksum}")
