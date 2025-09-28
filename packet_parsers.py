@@ -162,11 +162,6 @@ def parse_ipv6_header(hex_data):
     determine_header(next_header, hex_data)
 
 def parse_udp_header_ipv4(hex_data):
-    # for i in range(0, len(hex_data), 2):
-    #     print(hex_data[i:i+2], end=' ')
-    # print()
-
-
     source_port = int(hex_data[40:44], 16)
     dest_port = int(hex_data[44:48], 16)
     length = int(hex_data[48:52], 16)
@@ -190,6 +185,7 @@ def parse_tcp_header_ipv4(hex_data):
     seq_number = int(hex_data[48:56], 16)
     ack_number = int(hex_data[56:64], 16)
 
+    # entire headerlen + flags
     headerlen_flags = int(hex_data[64:68], 16)
     data_offset = (headerlen_flags >> 12) & 0xF
     reserved = (headerlen_flags >> 9) & 0x3
@@ -323,7 +319,6 @@ def parse_icmpv6_header(hex_data, offset):
     type = int(hex_data[80 + offset:82 + offset], 16)
     code = int(hex_data[82 + offset:84 + offset], 16)
     checksum = int(hex_data[84 + offset:88 + offset], 16)
-    payload = hex_data[88 + offset:]
 
     print(f"ICMPv6 Header:")
     print(f"  {'Type:':<25} {hex_data[80 + offset:82 + offset]:<20} | {type}")
