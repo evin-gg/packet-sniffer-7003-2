@@ -28,11 +28,11 @@ def parse_ethernet_header(hex_data):
 
 def determine_header(protocol, hex_data):
     if protocol == 0x11:
-        parse_udp_header_ipv4(hex_data)
+        parse_udp_header(hex_data)
     elif protocol == 0x06:
-        parse_tcp_header_ipv4(hex_data)
+        parse_tcp_header(hex_data)
     elif protocol == 0x01:
-        parse_icmp_header_ipv4(hex_data)
+        parse_icmp_header(hex_data)
     elif protocol == 0x0:
 
         offset = int(hex_data[82:84], 16)
@@ -161,7 +161,7 @@ def parse_ipv6_header(hex_data):
 
     determine_header(next_header, hex_data)
 
-def parse_udp_header_ipv4(hex_data):
+def parse_udp_header(hex_data):
     source_port = int(hex_data[40:44], 16)
     dest_port = int(hex_data[44:48], 16)
     length = int(hex_data[48:52], 16)
@@ -179,7 +179,7 @@ def parse_udp_header_ipv4(hex_data):
     else:
         print(f"  {'Payload (hex):':<25} {payload if payload else 'None'}")
 
-def parse_tcp_header_ipv4(hex_data):
+def parse_tcp_header(hex_data):
     source_port = int(hex_data[40:44], 16)
     dest_port = int(hex_data[44:48], 16)
     seq_number = int(hex_data[48:56], 16)
@@ -235,7 +235,7 @@ def parse_tcp_header_ipv4(hex_data):
     else:
         print(f"  {'Payload (hex):':<25} {payload if payload else 'None'}")
 
-def parse_icmp_header_ipv4(hex_data):
+def parse_icmp_header(hex_data):
     type = int(hex_data[40:42], 16)
     code = int(hex_data[42:44], 16)
     checksum = int(hex_data[44:48], 16)
