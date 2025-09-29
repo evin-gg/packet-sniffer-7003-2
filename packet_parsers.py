@@ -178,7 +178,7 @@ def parse_udp_header(hex_data):
     print(f"  {'Checksum:':<25} {hex_data[12:16]:<20} | {checksum}")
 
     if source_port == 53 or dest_port == 53:
-        parse_dns_header(hex_data[16:0])
+        parse_dns_header(hex_data[16:])
     else:
         print(f"  {'Payload (hex):':<25} {payload if payload else 'None'}")
 
